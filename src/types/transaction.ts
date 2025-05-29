@@ -1,4 +1,6 @@
+
 export interface APITransaction {
+  descricao: string
   id: string
   id_processo: string
   processo: string

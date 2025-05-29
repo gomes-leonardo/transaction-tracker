@@ -1,7 +1,14 @@
 // src/components/FancyTimeline.tsx
 import * as React from "react";
 import { ShoppingCart, Truck, FileText } from "lucide-react";
-import { cn } from "@/src/lib/utils";
+import { cn } from "@/lib/utils";
+
+interface Transaction {
+  historico?: Array<{
+    etapa: string;
+    status: "done" | "waiting" | "error";
+  }>;
+}
 
 interface Props {
   transaction: Transaction;
@@ -18,8 +25,7 @@ export function FancyTimeline({ transaction }: Props) {
     <div className="flex items-center">
       {/* linha antes do primeiro ícone */}
       <div className="flex-1 h-px bg-gray-200"></div>
-
-      {transaction.historico?.map((step: { etapa: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; status: string; }, i: React.Key | null | undefined) => {
+      {transaction.historico?.map((step: { etapa: string; status: string }, i: React.Key | null | undefined) => {
         const Icon = iconsMap[step.etapa] || FileText;
 
         // defina angulos e cores conforme status

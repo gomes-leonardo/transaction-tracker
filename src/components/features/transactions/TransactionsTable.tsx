@@ -1,7 +1,7 @@
 import { CheckCircle2, MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Transaction } from "@/types/transaction"
+import { APITransaction as Transaction } from "@/types/transaction"
 
 interface TransactionsTableProps {
   transactions: Transaction[]

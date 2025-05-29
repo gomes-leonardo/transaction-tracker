@@ -1,14 +1,20 @@
 import { api } from './api'
 
 export interface Transaction {
-  id: string
-  code: string
-  description: string
-  sourceDoc: string
-  targetDoc: string
-  status: 'pending' | 'completed' | 'error'
-  createdAt: string
-  updatedAt: string
+  cod_etapa: string
+  descricao: string
+  doc_origem: string
+  doc_destino: string | null
+  timestamp: string
+  erro_string: string | null
+  aguardando_reprocessamento: boolean
+}
+
+export interface TransactionListParams {
+  count?: number
+  skip?: number
+  cod_etapa?: string
+  sort_by?: string
 }
 
 export interface CreateTransactionDTO {
@@ -19,14 +25,44 @@ export interface CreateTransactionDTO {
 }
 
 export interface UpdateTransactionDTO {
-  status: Transaction['status']
+  cod_etapa: Transaction['cod_etapa']
   description?: string
 }
 
+const API_PATH = 'AribaBetter/TransactionTracker'
+
 export const TransactionsService = {
-  // Listar todas as transações
-  list: async () => {
-    const response = await api.get<Transaction[]>('/transactions')
+  // Listar transações com paginação e filtros
+  list: async (params: TransactionListParams = {}) => {
+    const response = await api.get('/api/proxy', {
+      params: {
+        path: API_PATH,
+        ...params
+      }
+    })
+    return response.data
+  },
+
+  // Buscar linha do tempo de uma transação específica
+  getTimelineById: async (id: string) => {
+    const response = await api.get('/api/proxy', {
+      params: {
+        path: API_PATH,
+        id
+      }
+    })
+    return response.data
+  },
+
+  // Método para obter lista com ordenação padrão
+  getLatestTransactions: async (count: number = 10) => {
+    const response = await api.get('/api/proxy', {
+      params: {
+        path: API_PATH,
+        count,
+        sort_by: '-sequencia,-timestamp'
+      }
+    })
     return response.data
   },
 
@@ -53,12 +89,6 @@ export const TransactionsService = {
     await api.delete(`/transactions/${id}`)
   },
 
-  // Buscar transações por status
-  listByStatus: async (status: Transaction['status']) => {
-    const response = await api.get<Transaction[]>(`/transactions/status/${status}`)
-    return response.data
-  },
-
   // Buscar transações por período
   listByPeriod: async (startDate: string, endDate: string) => {
     const response = await api.get<Transaction[]>('/transactions/period', {
@@ -69,4 +99,16 @@ export const TransactionsService = {
     })
     return response.data
   },
+
+  // Reprocessar uma transação
+  reprocess: async (cod_etapa: string) => {
+    const response = await api.post('/api/proxy', {
+      cod_etapa
+    }, {
+      params: {
+        path: `${API_PATH}/reprocess`
+      }
+    })
+    return response.data
+  }
 } 

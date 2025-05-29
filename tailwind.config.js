@@ -1,15 +1,12 @@
-import type { Config } from "tailwindcss"
-
-const config: Config = {
+/** @type {import('tailwindcss').Config} */
+module.exports = {
   darkMode: ["class"],
   content: [
-    "./pages/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-    "./app/**/*.{ts,tsx}",
-    "./src/**/*.{ts,tsx}",
-    "*.{js,ts,jsx,tsx,mdx}",
+    './pages/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './app/**/*.{ts,tsx}',
+    './src/**/*.{ts,tsx}',
   ],
-  prefix: "",
   theme: {
     container: {
       center: true,
@@ -53,7 +50,6 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Saga Consultoria colors
         saga: {
           petrol: "#005f73",
           graphite: "#2f3e46",
@@ -67,16 +63,6 @@ const config: Config = {
           "graphite-light": "#4a5c66",
           "graphite-dark": "#1f2a30",
         },
-        sidebar: {
-          DEFAULT: "#005f73",
-          foreground: "#ffffff",
-          primary: "#ffffff",
-          "primary-foreground": "#005f73",
-          accent: "#94d2bd",
-          "accent-foreground": "#005f73",
-          border: "#94d2bd",
-          ring: "#ee9b00",
-        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -85,12 +71,12 @@ const config: Config = {
       },
       keyframes: {
         "accordion-down": {
-          from: { height: "0" },
+          from: { height: 0 },
           to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
           from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: "0" },
+          to: { height: 0 },
         },
       },
       animation: {
@@ -100,6 +86,4 @@ const config: Config = {
     },
   },
   plugins: [require("tailwindcss-animate")],
-} satisfies Config
-
-export default config
+} 

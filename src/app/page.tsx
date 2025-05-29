@@ -16,12 +16,11 @@ export default function Page() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-gray-50">
+      <div className="flex w-full overflow-hidden">
         <AppSidebar />
-        <SidebarInset className="flex-1">
+        <SidebarInset className="flex-1 min-w-0">
           <Header onRefresh={handleRefresh} isRefreshing={isRefreshing} />
-
-          <main className="p-6">
+          <main className="p-6 overflow-auto">
             <TransactionTable />
           </main>
         </SidebarInset>

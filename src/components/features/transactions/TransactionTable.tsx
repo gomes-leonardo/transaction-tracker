@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { AlertCircle, Activity, MoreHorizontal, CheckCircle2, Clock, XCircle, RefreshCw } from "lucide-react"
+import { useEffect, useState } from "react"
+import { AlertCircle, Activity, MoreHorizontal, CheckCircle2, Clock, XCircle, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react"
 import { Filter } from "lucide-react"
 import { TransactionDetailsModal } from "./TransactionDetailsModal"
 import { Input } from "@/components/ui/input"
@@ -10,64 +10,9 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-
-const mockData = [
-  {
-    id: "6ac34b0e-4b57-4ece-bb04-f5e80ed940e9",
-    id_processo: "c3a82eb8-5c25-4612-b4b9-4939297df289",
-    processo: "CriacaoEventos",
-    cod_etapa: "DET_OWNER_EVENTO",
-    descricao: "Executa a publicação do Evento",
-    sequencia: "500",
-    doc_origem: "SR1560657030",
-    doc_destino: null,
-    timestamp: "2025-05-07T12:28:25.725735Z",
-    processado_sucesso: true,
-    permite_reprocessar: false,
-    erro_string: "Falha na conexão com o servidor de destino",
-    aguardando_reprocessamento: false,
-    historico: [
-      { etapa: "Capturado", data: "2025-05-07T12:00:00Z", status: "done" },
-      { etapa: "Validado", data: "2025-05-07T12:10:00Z", status: "done" },
-      { etapa: "Publicado", data: "2025-05-07T12:20:00Z", status: "error" }
-    ]
-  },
-  {
-    id: "7bd45c1f-5c68-5fdf-cc15-g6f91fe051fa",
-    id_processo: "d4b93fc9-6d36-5723-c5ca-5a4a3a8eg0a8",
-    processo: "CriacaoEventos",
-    cod_etapa: "DET_FINAL_EVENTO",
-    descricao: "Finalização do evento",
-    sequencia: "600",
-    doc_origem: "SR1560657031",
-    doc_destino: "EVT-00123",
-    timestamp: "2025-05-07T14:32:00.000000Z",
-    processado_sucesso: true,
-    permite_reprocessar: false,
-    erro_string: null,
-    aguardando_reprocessamento: false,
-    historico: [
-      { etapa: "Capturado", data: "2025-05-07T14:00:00Z", status: "done" },
-      { etapa: "Validado", data: "2025-05-07T14:15:00Z", status: "done" },
-      { etapa: "Finalizado", data: "2025-05-07T14:30:00Z", status: "done" }
-    ]
-  },
-  {
-    id: "8ce56d2g-6d79-6geg-dd26-h7g02gf162gb",
-    id_processo: "e5ca4gda-7e47-6834-d6db-6b5b4b9fh1b9",
-    processo: "CriacaoEventos",
-    cod_etapa: "DET_VALIDACAO_EVENTO",
-    descricao: "Validação de dados do evento",
-    sequencia: "400",
-    doc_origem: "SR1560657032",
-    doc_destino: null,
-    timestamp: "2025-05-07T16:15:00.000000Z",
-    processado_sucesso: true,
-    permite_reprocessar: true,
-    erro_string: null,
-    aguardando_reprocessamento: true,
-  },
-]
+import { api } from "@/services/api"
+import { toast } from "sonner"
+import { TransactionsService } from "@/services/transactions"
 
 const formatDate = (timestamp: string) => {
   return new Date(timestamp).toLocaleString("pt-BR", {
@@ -109,32 +54,52 @@ export function TransactionTable() {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedTransaction, setSelectedTransaction] = useState<any | null>(null)
   const [selectedItems, setSelectedItems] = useState<string[]>([])
-  const pageSize = 5
+  const [isLoading, setIsLoading] = useState(true)
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const pageSize = 10
 
-  const filteredData = mockData.filter((t) =>
+  const fetchTransactions = async (page = currentPage) => {
+    try {
+      setIsLoading(true)
+      const skip = (page - 1) * pageSize
+      const response = await TransactionsService.list({
+        count: pageSize,
+        skip,
+        sort_by: '-sequencia,-timestamp'
+      })
+      setTransactions(response)
+      // Assumindo que a API retorna o total em algum header ou campo
+      // setTotalCount(totalFromAPI)
+      setTotalCount(Math.max(skip + response.length + pageSize, response.length * 2)) // Temporário
+    } catch (error) {
+      console.error('Erro ao buscar transações:', error)
+      toast.error('Erro ao carregar transações')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchTransactions()
+  }, [currentPage])
+
+  const filteredData = transactions.filter((t) =>
     t.cod_etapa.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.doc_origem.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const paginatedData = filteredData.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  )
-
-  const totalPages = Math.ceil(filteredData.length / pageSize)
-
   // Statistics
   const stats = {
-    total: mockData.length,
-    success: mockData.filter(t => t.processado_sucesso).length,
-    error: mockData.filter(t => t.erro_string).length,
-    pending: mockData.filter(t => t.aguardando_reprocessamento).length
+    total: transactions.length,
+    error: transactions.filter(t => t.erro_string !== null).length,
+    pending: transactions.filter(t => t.aguardando_reprocessamento).length
   }
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedItems(paginatedData.map(t => t.id))
+      setSelectedItems(filteredData.map(t => t.cod_etapa))
     } else {
       setSelectedItems([])
     }
@@ -148,261 +113,294 @@ export function TransactionTable() {
     }
   }
 
-  const handleReprocessSelected = () => {
-    // Aqui você implementaria a lógica de reprocessamento
-    console.log('Reprocessar:', selectedItems)
-    setSelectedItems([])
+  const handleReprocessSelected = async () => {
+    if (selectedItems.length === 0) {
+      toast.error('Selecione pelo menos uma transação para reprocessar')
+      return
+    }
+
+    try {
+      const promises = selectedItems.map(id => TransactionsService.reprocess(id))
+      await Promise.all(promises)
+      toast.success(`${selectedItems.length} transação(ões) enviada(s) para reprocessamento`)
+      fetchTransactions()
+      setSelectedItems([])
+    } catch (error) {
+      console.error('Erro ao reprocessar transações:', error)
+      toast.error('Erro ao reprocessar transações')
+    }
   }
 
+  const totalPages = Math.ceil(totalCount / pageSize)
+
   return (
-    <div className="space-y-6">
-      {/* Title */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Transaction Tracker</h1>
-          <p className="text-sm text-slate-500">Monitore e gerencie suas transações SAP</p>
+    <div className="space-y-8">
+      {/* Title and Search Section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-saga-graphite">Transaction Tracker</h1>
+            <p className="text-sm text-saga-graphite/60 mt-1">Monitore e gerencie suas transações SAP</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {selectedItems.length > 0 && (
+              <Button
+                onClick={handleReprocessSelected}
+                variant="default"
+                size="lg"
+                className="bg-saga-petrol hover:bg-saga-petrol-dark text-white"
+              >
+                <RefreshCw className="w-5 h-5 mr-2" />
+                Reprocessar {selectedItems.length} selecionado(s)
+              </Button>
+            )}
+            <Button
+              onClick={() => fetchTransactions(currentPage)}
+              disabled={isLoading}
+              variant="outline"
+              size="lg"
+              className="text-saga-graphite hover:text-saga-petrol hover:border-saga-petrol/20"
+            >
+              <RefreshCw className={`w-5 h-5 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? 'Atualizando...' : 'Atualizar'}
+            </Button>
+          </div>
         </div>
-        {selectedItems.length > 0 && (
-          <Button
-            onClick={handleReprocessSelected}
-            className="bg-[#005F61] hover:bg-[#005F61]/90 text-white"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Reprocessar Selecionados ({selectedItems.length})
-          </Button>
-        )}
+
+        {/* Search Input */}
+        <div className="relative w-full max-w-2xl">
+          <Input
+            placeholder="Buscar por código, descrição ou documento..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-12 py-6 text-lg bg-white border-gray-200 rounded-xl shadow-sm"
+          />
+          <Filter className="w-6 h-6 absolute left-4 top-1/2 -translate-y-1/2 text-saga-graphite/40" />
+        </div>
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+              <p className="text-base font-medium text-saga-graphite/70">Total de Transações</p>
+              <p className="text-3xl font-bold text-saga-graphite mt-2">{stats.total}</p>
             </div>
-            <div className="p-2 bg-gray-100 rounded-full">
-              <Activity className="w-5 h-5 text-gray-600" />
+            <div className="p-3 bg-saga-mint/10 rounded-xl">
+              <Activity className="w-6 h-6 text-saga-petrol" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Concluídos</p>
-              <p className="text-2xl font-bold text-green-600">{stats.success}</p>
+              <p className="text-base font-medium text-saga-graphite/70">Com Erros</p>
+              <p className="text-3xl font-bold text-red-600 mt-2">{stats.error}</p>
             </div>
-            <div className="p-2 bg-green-100 rounded-full">
-              <CheckCircle2 className="w-5 h-5 text-green-600" />
+            <div className="p-3 bg-red-50 rounded-xl">
+              <AlertCircle className="w-6 h-6 text-red-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Com Erros</p>
-              <p className="text-2xl font-bold text-red-600">{stats.error}</p>
+              <p className="text-base font-medium text-saga-graphite/70">Aguardando</p>
+              <p className="text-3xl font-bold text-saga-orange mt-2">{stats.pending}</p>
             </div>
-            <div className="p-2 bg-red-100 rounded-full">
-              <XCircle className="w-5 h-5 text-red-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Pendentes</p>
-              <p className="text-2xl font-bold text-orange-600">{stats.pending}</p>
-            </div>
-            <div className="p-2 bg-orange-100 rounded-full">
-              <Clock className="w-5 h-5 text-orange-600" />
+            <div className="p-3 bg-orange-50 rounded-xl">
+              <Clock className="w-6 h-6 text-saga-orange" />
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="relative max-w-md w-full">
-            <Input
-              placeholder="Buscar por código, descrição ou documento..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-            />
-            <span className="absolute left-3 top-2.5 text-gray-400">
-              <Filter className="w-4 h-4" />
-            </span>
-          </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="border-gray-300">
-                <Filter className="w-4 h-4 mr-2" />
-                Filtros
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-white border border-gray-200 shadow-lg">
-              <DropdownMenuItem>Todos</DropdownMenuItem>
-              <DropdownMenuItem>Pendentes</DropdownMenuItem>
-              <DropdownMenuItem>Concluídos</DropdownMenuItem>
-              <DropdownMenuItem>Com Erros</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <Table>
-          <TableHeader className="bg-sidebar text-sidebar-foreground">
+          <TableHeader className="bg-saga-petrol/5">
             <TableRow>
-              <TableHead className="text-white font-semibold text-sm w-12">
-                <Checkbox 
-                  checked={selectedItems.length === paginatedData.length}
-                  onCheckedChange={(checked: boolean) => handleSelectAll(checked)}
-                  className="border-white data-[state=checked]:bg-white data-[state=checked]:text-[#005F61]"
+              <TableHead className="w-12">
+                <Checkbox
+                  checked={selectedItems.length === filteredData.length && filteredData.length > 0}
+                  onCheckedChange={handleSelectAll}
+                  className="border-saga-petrol/20"
                 />
               </TableHead>
-              <TableHead className="text-white font-semibold text-sm">Código Etapa</TableHead>
-              <TableHead className="text-white font-semibold text-sm">Descrição</TableHead>
-              <TableHead className="text-white font-semibold text-sm">Doc. Origem</TableHead>
-              <TableHead className="text-white font-semibold text-sm">Doc. Destino</TableHead>
-              <TableHead className="text-white font-semibold text-sm">Data/Hora</TableHead>
-              <TableHead className="text-white font-semibold text-sm">Status</TableHead>
-              <TableHead className="text-white font-semibold text-sm text-center">Detalhes</TableHead>
+              <TableHead className="font-semibold text-saga-graphite py-4">Código Etapa</TableHead>
+              <TableHead className="font-semibold text-saga-graphite">Descrição</TableHead>
+              <TableHead className="font-semibold text-saga-graphite">Doc. Origem</TableHead>
+              <TableHead className="font-semibold text-saga-graphite">Doc. Destino</TableHead>
+              <TableHead className="font-semibold text-saga-graphite">Data/Hora</TableHead>
+              <TableHead className="font-semibold text-saga-graphite">Status</TableHead>
+              <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
-
           <TableBody>
-            {paginatedData.map((t, i) => {
-              const statusInfo = getStatusInfo(t)
-              const StatusIcon = statusInfo.icon
-              
-              return (
-                <TableRow 
-                  key={i} 
-                  className="hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0"
-                >
-                  <TableCell>
-                    <Checkbox 
-                      checked={selectedItems.includes(t.id)}
-                      onCheckedChange={(checked: boolean) => handleSelectItem(t.id, checked)}
-                      className="border-slate-300 data-[state=checked]:bg-[#005F61]"
-                    />
-                  </TableCell>
-                  <TableCell className="font-mono text-sm font-medium text-slate-900">
-                    {t.cod_etapa}
-                  </TableCell>
-                  <TableCell className="text-slate-700 max-w-xs">
-                    <div className="truncate" title={t.descricao}>
-                      {t.descricao}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm text-slate-600">
-                    {t.doc_origem}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm text-slate-600">
-                    {t.doc_destino || (
-                      <span className="text-gray-400 italic">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-slate-600">
-                    {formatDate(t.timestamp)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <Badge className={`${statusInfo.className} font-medium transition-colors w-fit`}>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${statusInfo.dotColor}`} />
-                          <StatusIcon className="w-3 h-3" />
-                          {statusInfo.label}
-                        </div>
-                      </Badge>
-                      {t.erro_string && (
-                        <div className="flex items-start gap-1 text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200 mt-1">
-                          <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                          <span className="truncate max-w-32" title={t.erro_string}>
-                            {t.erro_string}
-                          </span>
-                        </div>
-                      )}
-                      {t.aguardando_reprocessamento && (
-                        <div className="flex items-start gap-1 text-xs text-orange-600 bg-orange-50 p-2 rounded border border-orange-200 mt-1">
-                          <Clock className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                          <span className="text-xs">Aguardando reprocessamento</span>
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setSelectedTransaction(t)}
-                      className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600"
-                      title="Ver detalhes"
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={8} className="h-32 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <RefreshCw className="w-6 h-6 animate-spin text-saga-petrol" />
+                    <span className="text-saga-graphite">Carregando transações...</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : filteredData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="h-32 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <AlertCircle className="w-6 h-6 text-saga-graphite/40" />
+                    <span className="text-saga-graphite">Nenhuma transação encontrada</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredData.map((transaction) => {
+                const status = getStatusInfo(transaction)
+                return (
+                  <TableRow 
+                    key={transaction.cod_etapa + transaction.timestamp} 
+                    className="hover:bg-saga-petrol/5 transition-colors cursor-pointer"
+                  >
+                    <TableCell className="w-12">
+                      <Checkbox
+                        checked={selectedItems.includes(transaction.cod_etapa)}
+                        onCheckedChange={(checked) => handleSelectItem(transaction.cod_etapa, checked as boolean)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="border-saga-petrol/20"
+                      />
+                    </TableCell>
+                    <TableCell 
+                      className="font-medium text-saga-graphite py-4"
+                      onClick={() => setSelectedTransaction(transaction)}
                     >
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
+                      {transaction.cod_etapa}
+                    </TableCell>
+                    <TableCell 
+                      className="text-saga-graphite/80 max-w-[300px] truncate" 
+                      title={transaction.descricao}
+                      onClick={() => setSelectedTransaction(transaction)}
+                    >
+                      {transaction.descricao}
+                    </TableCell>
+                    <TableCell 
+                      className="font-mono text-sm text-saga-graphite/70"
+                      onClick={() => setSelectedTransaction(transaction)}
+                    >
+                      {transaction.doc_origem}
+                    </TableCell>
+                    <TableCell 
+                      className="font-mono text-sm text-saga-graphite/70"
+                      onClick={() => setSelectedTransaction(transaction)}
+                    >
+                      {transaction.doc_destino || "-"}
+                    </TableCell>
+                    <TableCell 
+                      className="text-sm text-saga-graphite/70"
+                      onClick={() => setSelectedTransaction(transaction)}
+                    >
+                      {formatDate(transaction.timestamp)}
+                    </TableCell>
+                    <TableCell onClick={() => setSelectedTransaction(transaction)}>
+                      <Badge className={`${status.className} px-3 py-1`}>
+                        <status.icon className="w-3.5 h-3.5 mr-1.5" />
+                        {status.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="hover:bg-saga-mint/10"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedTransaction(transaction)
+                        }}
+                      >
+                        <MoreHorizontal className="w-5 h-5 text-saga-graphite/70" />
+                        <span className="sr-only">Ver detalhes</span>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+            )}
           </TableBody>
         </Table>
-
-        {filteredData.length === 0 && (
-          <div className="text-center py-16 text-gray-500">
-            <Activity className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium text-gray-600">Nenhuma transação encontrada</p>
-            <p className="text-sm text-gray-500">Tente ajustar seus critérios de busca</p>
-          </div>
-        )}
       </div>
 
-      {/* Pagination */}
-      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-          <div className="text-sm text-slate-600">
-            Exibindo <strong className="text-slate-900">{paginatedData.length}</strong> de{" "}
-            <strong className="text-slate-900">{filteredData.length}</strong> transações
+      {/* Paginação */}
+      {!isLoading && filteredData.length > 0 && (
+        <div className="flex items-center justify-between px-2">
+          <div className="text-sm text-saga-graphite/70">
+            Mostrando {((currentPage - 1) * pageSize) + 1} até {Math.min(currentPage * pageSize, totalCount)} de {totalCount} resultados
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
-              size="sm"
               variant="outline"
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="border-gray-300"
+              className="text-saga-graphite hover:text-saga-petrol"
             >
+              <ChevronLeft className="w-4 h-4 mr-1" />
               Anterior
             </Button>
-            <div className="flex items-center px-3 py-1 text-sm text-slate-600 bg-slate-50 rounded border">
-              {currentPage} de {totalPages}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const pageNumber = i + 1
+                return (
+                  <Button
+                    key={pageNumber}
+                    variant={currentPage === pageNumber ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(pageNumber)}
+                    className={currentPage === pageNumber ? "bg-saga-petrol text-white" : "text-saga-graphite hover:text-saga-petrol"}
+                  >
+                    {pageNumber}
+                  </Button>
+                )
+              })}
+              {totalPages > 5 && (
+                <>
+                  <span className="px-2 text-saga-graphite/40">...</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(totalPages)}
+                    className="text-saga-graphite hover:text-saga-petrol"
+                  >
+                    {totalPages}
+                  </Button>
+                </>
+              )}
             </div>
             <Button
-              size="sm"
               variant="outline"
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="border-gray-300"
+              className="text-saga-graphite hover:text-saga-petrol"
             >
               Próxima
+              <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
         </div>
-      </div>
+      )}
 
-      <TransactionDetailsModal
-        isOpen={!!selectedTransaction}
-        transaction={selectedTransaction}
-        onClose={() => setSelectedTransaction(null)}
-      />
+      {/* Transaction Details Modal */}
+      {selectedTransaction && (
+        <TransactionDetailsModal
+          transaction={selectedTransaction}
+          onClose={() => setSelectedTransaction(null)}
+          onUpdate={() => fetchTransactions(currentPage)}
+        />
+      )}
     </div>
   )
 }
