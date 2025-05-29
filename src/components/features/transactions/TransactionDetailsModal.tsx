@@ -78,18 +78,16 @@ const getTimelineStep = (data: any) => {
       status = 'in_progress'
     }
 
-    const getIcon = (etapa: string) => {
-      switch (etapa) {
-        case 'CAP_SR':
-          return FileText
-        case 'CAP_PO':
-          return FileText
-        case 'CRIAR_PEDIDO':
-          return FileText
-        case 'CRIAR_NF':
-          return Receipt
-        case 'ENV_NF':
-          return Send
+    const getIcon = (status: string) => {
+      switch (status) {
+        case 'completed':
+          return CheckCircle2
+        case 'in_progress':
+          return Loader2
+        case 'error':
+          return XCircle
+        case 'waiting':
+          return Clock
         default:
           return FileText
       }
@@ -154,7 +152,9 @@ export function TransactionDetailsModal({ transaction, onClose, onUpdate }: Tran
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] p-0 gap-0 bg-white outline-none">
+      <DialogContent
+  className="max-w-3xl w-full h-[90vh] overflow-hidden rounded-2xl border border-gray-200 shadow-xl p-0 bg-white"
+>
         <VisuallyHidden>
           <DialogTitle>Detalhes da Transação</DialogTitle>
         </VisuallyHidden>
@@ -187,7 +187,8 @@ export function TransactionDetailsModal({ transaction, onClose, onUpdate }: Tran
           </div>
         </div>
 
-        <ScrollArea className="h-[calc(90vh-5rem)] overflow-y-auto">
+        <div className="h-[calc(90vh-5rem)] overflow-y-auto px-6 py-6 space-y-6">
+
           <div className="px-6 py-6 space-y-6">
             {isLoading ? (
               <div className="flex items-center justify-center h-[60vh]">
@@ -340,7 +341,7 @@ export function TransactionDetailsModal({ transaction, onClose, onUpdate }: Tran
               </>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   )
