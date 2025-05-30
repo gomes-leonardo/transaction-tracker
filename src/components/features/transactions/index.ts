@@ -1,4 +1,4 @@
-export * from './TransactionsTable';
+export * from './TransactionTable';
 export * from './TransactionDetailsModal';
 export * from './MetricsSection';
 export * from './SearchInput';
