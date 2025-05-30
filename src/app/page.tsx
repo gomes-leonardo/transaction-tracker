@@ -1,9 +1,9 @@
 "use client"
 
-import { TransactionTable } from "@/components/features/transactions/TransactionTable"
-import { Header } from "@/components/layouts/Header"
-import { AppSidebar } from "@/components/layouts/Sidebar"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { TransactionTable } from "../components/features/transactions/TransactionTable"
+import { Header } from "../components/layouts/Header"
+import { AppSidebar } from "../components/layouts/Sidebar"
+import { SidebarInset, SidebarProvider } from "../components/ui/sidebar"
 import { useState } from "react"
 
 export default function Page() {
